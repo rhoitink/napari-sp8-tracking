@@ -94,8 +94,8 @@ def particle_tracking_settings_widget(
         f"{np.shape(coords)[0]} features found, took {time()-t:.2f} s"
     )
 
-    # @todo: fix scaling of coordinates
+    # @todo: fix size of points
     viewer.add_points(
-        np.array(coords[["z", "y", "x"]]) * pixel_sizes,
-        size=feature_size_xy_µm * pixel_sizes[2],
+        np.array(coords[["z", "y", "x"]]),
+        scale=pixel_sizes,
     )
