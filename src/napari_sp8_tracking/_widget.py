@@ -9,110 +9,25 @@ Replace code below according to your needs.
 from time import time
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 import trackpy as tp
 from magicgui import magic_factory
+from magicgui.tqdm import tqdm
+from matplotlib.backends.backend_qt5agg import FigureCanvas
 from napari.utils import notifications
-from qtpy.QtWidgets import (
-    QCheckBox,
-    QComboBox,
-    QDoubleSpinBox,
-    QGridLayout,
-    QLabel,
-    QPushButton,
-    QSpinBox,
-    QWidget,
-)
+from superqt.utils import thread_worker
 
 if TYPE_CHECKING:
     import napari
 
-
-class ParticleTrackingWidget(QWidget):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
-        super().__init__()
-        self._viewer = viewer
-
-        self.setup_gui()
-
-    def setup_gui(self) -> None:
-        self.imagelayer_label = QLabel("Image")
-        self.imagelayer_value = QComboBox()
-        self.imagelayer_value.setEditable(False)
-        self.imagelayer_value.addItems(
-            [layer.name for layer in self._viewer.layers]
-        )
-
-        self.featuresize_xy_label = QLabel("Feature size xy (µm)")
-
-        self.featuresize_xy_value = QDoubleSpinBox()
-        self.featuresize_xy_value.setMinimum(0.0)
-        self.featuresize_xy_value.setSingleStep(0.1)
-        self.featuresize_xy_value.setValue(0.5)
-
-        self.featuresize_z_label = QLabel("Feature size xy (µm)")
-
-        self.featuresize_z_value = QDoubleSpinBox()
-        self.featuresize_z_value.setMinimum(0.0)
-        self.featuresize_z_value.setSingleStep(0.1)
-        self.featuresize_z_value.setValue(0.5)
-
-        self.minsep_xy_label = QLabel("Min. separation xy (µm)")
-
-        self.minsep_xy_value = QDoubleSpinBox()
-        self.minsep_xy_value.setMinimum(0.0)
-        self.minsep_xy_value.setSingleStep(0.1)
-        self.minsep_xy_value.setValue(0.5)
-
-        self.minsep_z_label = QLabel("Min. separation z (µm)")
-
-        self.minsep_z_value = QDoubleSpinBox()
-        self.minsep_z_value.setMinimum(0.0)
-        self.minsep_z_value.setSingleStep(0.1)
-        self.minsep_z_value.setValue(0.5)
-
-        self.minmass_label = QLabel("Min. mass")
-
-        self.minmass_value = QSpinBox()
-        self.minmass_value.setMinimum(0)
-        self.minmass_value.setSingleStep(1000)
-        self.minmass_value.setMaximum(2**31 - 1)
-        self.minmass_value.setValue(1000)
-
-        self.showplots_label = QLabel("Show plots?")
-        self.showplots_value = QCheckBox()
-
-        self.run_button = QPushButton("Run")
-        self.run_button.clicked.connect(self._run)
-
-        self.setLayout(QGridLayout())
-
-        self.layout().addWidget(self.featuresize_xy_label, 0, 0)
-        self.layout().addWidget(self.featuresize_xy_value, 0, 1)
-        self.layout().addWidget(self.featuresize_z_label, 1, 0)
-        self.layout().addWidget(self.featuresize_z_value, 1, 1)
-
-        self.layout().addWidget(self.minsep_xy_label, 2, 0)
-        self.layout().addWidget(self.minsep_xy_value, 2, 1)
-        self.layout().addWidget(self.minsep_z_label, 3, 0)
-        self.layout().addWidget(self.minsep_z_value, 3, 1)
-
-        self.layout().addWidget(self.minmass_label, 4, 0)
-        self.layout().addWidget(self.minmass_value, 4, 1)
-
-        self.layout().addWidget(self.showplots_label, 5, 0)
-        self.layout().addWidget(self.showplots_value, 5, 1)
-
-        self.layout().addWidget(self.imagelayer_label, 6, 0)
-        self.layout().addWidget(self.imagelayer_value, 6, 1)
-
-        self.layout().addWidget(self.run_button, 8, 0)
-
-    def _run(self):
-        notifications.show_info("Button was clicked!")
+fig_added = False
+fig, ax = None, None
 
 
-@magic_factory
+@magic_factory(
+    min_mass={"widget_type": "SpinBox", "max": int(1e8)},
+)
 def particle_tracking_settings_widget(
     viewer: "napari.viewer.Viewer",
     img_layer: "napari.layers.Image",
@@ -120,18 +35,85 @@ def particle_tracking_settings_widget(
     feature_size_z_µm: float = 0.3,
     min_separation_xy_µm: float = 0.3,
     min_separation_z_µm: float = 0.3,
-    min_mass=1e5,
+    min_mass=int(1e5),
     show_plots: bool = False,
 ):
+    if img_layer is None:
+        notifications.show_error("No image selected")
+        return
+
     if "aicsimage" not in img_layer.metadata:
-        raise ValueError(
+        notifications.show_error(
             "Data not loaded via aicsimageio plugin, cannot extract metadata"
         )
+        return
 
+    global fig_added, fig, ax
+    if not fig_added:
+        fig, ax = plt.subplots(1, 1)
+        particle_tracking_settings_widget.native.layout().addWidget(
+            FigureCanvas(fig)
+        )
+        fig_added = True
+
+    with tqdm() as pbar:
+        results = do_particle_tracking(
+            img_layer,
+            feature_size_xy_μm,  # noqa F821
+            feature_size_z_μm,  # noqa F821
+            min_separation_xy_μm,  # noqa F821
+            min_separation_z_μm,  # noqa F821
+            min_mass,
+            show_plots,
+        )
+        results.returned.connect(
+            lambda x: add_points_to_viewer(viewer, img_layer, x)
+        )
+        results.returned.connect(lambda x: show_mass_histogram(ax, x))
+        results.finished.connect(lambda: pbar.progressbar.hide())
+        results.start()
+
+
+def add_points_to_viewer(viewer, img_layer, output):
+    coords, pixel_sizes = output
+    # @todo: fix size of points
+    viewer.add_points(
+        np.array(coords[["z", "y", "x"]]),
+        properties={"mass": coords["mass"]},
+        scale=pixel_sizes,
+        edge_color="red",
+        face_color="transparent",
+        name=f"{img_layer.name}_coords",
+        out_of_slice_display=True,
+    )
+
+
+def show_mass_histogram(axis, output):
+    coords, pixel_sizes = output
+    axis.cla()
+    axis.hist(coords["mass"], "auto")
+    axis.set_xlabel("mass (a.u.)")
+    axis.set_ylabel("occurence")
+    axis.figure.tight_layout()
+    axis.figure.canvas.draw()
+
+
+@thread_worker
+def do_particle_tracking(
+    img_layer: "napari.layers.Image",
+    feature_size_xy_µm: float,
+    feature_size_z_µm: float,
+    min_separation_xy_µm: float,
+    min_separation_z_µm: float,
+    min_mass,
+    show_plots: bool,
+):
     img = img_layer.metadata["aicsimage"]
 
     # tracking code implementation based on `sp8_xyz_tracking_lif.py` by Maarten Bransen
-    stack = np.squeeze(img.data)
+    stack = np.squeeze(
+        img_layer.data_raw
+    )  # squeeze out dimensions with length 1
     nz, ny, nx = stack.shape
     pixel_sizes = np.array(
         [getattr(img.physical_pixel_sizes, dim) for dim in ["Z", "Y", "X"]]
@@ -141,7 +123,7 @@ def particle_tracking_settings_widget(
 
     feature_sizes = np.array(
         [
-            np.ceil(feature_size_z_µm / pixel_sizes[0]) // 2 * 2 + 1,
+            np.ceil(feature_size_z_µm / np.abs(pixel_sizes[0])) // 2 * 2 + 1,
             np.ceil(feature_size_xy_µm / pixel_sizes[1]) // 2 * 2 + 1,
             np.ceil(feature_size_xy_µm / pixel_sizes[2]) // 2 * 2 + 1,
         ]
@@ -149,7 +131,7 @@ def particle_tracking_settings_widget(
 
     min_separations = np.array(
         [
-            np.ceil(min_separation_z_µm / pixel_sizes[0]) // 2 * 2 + 1,
+            np.ceil(min_separation_z_µm / np.abs(pixel_sizes[0])) // 2 * 2 + 1,
             np.ceil(min_separation_xy_µm / pixel_sizes[1]) // 2 * 2 + 1,
             np.ceil(min_separation_xy_µm / pixel_sizes[2]) // 2 * 2 + 1,
         ]
@@ -162,9 +144,7 @@ def particle_tracking_settings_widget(
     ):
         feature_sizes[0] += 2
         notifications.show_warning(
-            "Increasing z-size to {:}".format(
-                feature_sizes[0] * pixel_sizes[0]
-            )
+            f"Increasing z-size to {feature_sizes[0] * np.abs(pixel_sizes[0])}"
         )
 
     t = time()
@@ -190,12 +170,10 @@ def particle_tracking_settings_widget(
         )
     ]
 
-    print(coords.head())
-
     if show_plots:
         import matplotlib.pyplot as plt
 
-        fig, ax = plt.subplots(1, 1)
+        _, ax = plt.subplots(1, 1)
         ax.hist(coords["mass"], bins="auto", fc="blue", ec="k")
         ax.set_title("Histogram of particle mass")
         ax.set_xlabel("Mass")
@@ -207,12 +185,4 @@ def particle_tracking_settings_widget(
         f"{np.shape(coords)[0]} features found, took {time()-t:.2f} s"
     )
 
-    # @todo: fix size of points
-    viewer.add_points(
-        np.array(coords[["z", "y", "x"]]),
-        properties={"mass": coords["mass"]},
-        scale=pixel_sizes,
-        edge_color="red",
-        face_color="transparent",
-        name=f"{img_layer.name}_coordinates",
-    )
+    return (coords, pixel_sizes)

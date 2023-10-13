@@ -1,15 +1,10 @@
 name: napari-sp8-tracking
-display_name: SP8 particle tracking
+display_name: Particle tracking
 contributions:
   commands:
     - id: napari-sp8-tracking.particle_tracking_settings_widget
       python_name: napari_sp8_tracking._widget:particle_tracking_settings_widget
-      title: SP8 particle tracking
-    - id: napari-sp8-tracking.particle_tracking_widget
-      python_name: napari_sp8_tracking._widget:ParticleTrackingWidget
-      title: Particle tracking
+      title: Trackpy particle tracking
   widgets:
     - command: napari-sp8-tracking.particle_tracking_settings_widget
-      display_name: SP8 particle tracking
-    - command: napari-sp8-tracking.particle_tracking_widget
-      display_name: Particle tracking
+      display_name: Trackpy particle tracking
