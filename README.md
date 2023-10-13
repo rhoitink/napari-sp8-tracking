@@ -1,13 +1,13 @@
-# napari-sp8-tracking
+# napari-trackpy
 
-[![License MIT](https://img.shields.io/pypi/l/napari-sp8-tracking.svg?color=green)](https://github.com/rhoitink/napari-sp8-tracking/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/napari-sp8-tracking.svg?color=green)](https://pypi.org/project/napari-sp8-tracking)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-sp8-tracking.svg?color=green)](https://python.org)
-[![tests](https://github.com/rhoitink/napari-sp8-tracking/workflows/tests/badge.svg)](https://github.com/rhoitink/napari-sp8-tracking/actions)
-[![codecov](https://codecov.io/gh/rhoitink/napari-sp8-tracking/branch/main/graph/badge.svg)](https://codecov.io/gh/rhoitink/napari-sp8-tracking)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-sp8-tracking)](https://napari-hub.org/plugins/napari-sp8-tracking)
+[![License MIT](https://img.shields.io/pypi/l/napari-trackpy.svg?color=green)](https://github.com/rhoitink/napari-trackpy/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/napari-trackpy.svg?color=green)](https://pypi.org/project/napari-trackpy)
+[![Python Version](https://img.shields.io/pypi/pyversions/napari-trackpy.svg?color=green)](https://python.org)
+[![tests](https://github.com/rhoitink/napari-trackpy/workflows/tests/badge.svg)](https://github.com/rhoitink/napari-trackpy/actions)
+[![codecov](https://codecov.io/gh/rhoitink/napari-trackpy/branch/main/graph/badge.svg)](https://codecov.io/gh/rhoitink/napari-trackpy)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-trackpy)](https://napari-hub.org/plugins/napari-trackpy)
 
-Plugin to do trackpy particle tracking on SP8 confocal data within napari
+Plugin to do trackpy particle tracking on 3D microscopy data within napari
 
 ----------------------------------
 
@@ -23,15 +23,15 @@ https://napari.org/stable/plugins/index.html
 
 ## Installation
 
-You can install `napari-sp8-tracking` via [pip]:
+You can install `napari-trackpy` via [pip]:
 
-    pip install napari-sp8-tracking
+    pip install napari-trackpy
 
 
 
 To install latest development version :
 
-    pip install git+https://github.com/rhoitink/napari-sp8-tracking.git
+    pip install git+https://github.com/rhoitink/napari-trackpy.git
 
 
 ## Contributing
@@ -42,7 +42,7 @@ the coverage at least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [MIT] license,
-"napari-sp8-tracking" is free and open source software
+"napari-trackpy" is free and open source software
 
 ## Issues
 
@@ -59,7 +59,7 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [Mozilla Public License 2.0]: https://www.mozilla.org/media/MPL/2.0/index.txt
 [cookiecutter-napari-plugin]: https://github.com/napari/cookiecutter-napari-plugin
 
-[file an issue]: https://github.com/rhoitink/napari-sp8-tracking/issues
+[file an issue]: https://github.com/rhoitink/napari-trackpy/issues
 
 [napari]: https://github.com/napari/napari
 [tox]: https://tox.readthedocs.io/en/latest/

@@ -28,7 +28,7 @@ fig, ax = None, None
 @magic_factory(
     min_mass={"widget_type": "SpinBox", "max": int(1e8)},
 )
-def particle_tracking_settings_widget(
+def xyz_particle_tracking_settings_widget(
     viewer: "napari.viewer.Viewer",
     img_layer: "napari.layers.Image",
     feature_size_xy_µm: float = 0.3,
@@ -51,7 +51,7 @@ def particle_tracking_settings_widget(
     global fig_added, fig, ax
     if not fig_added:
         fig, ax = plt.subplots(1, 1)
-        particle_tracking_settings_widget.native.layout().addWidget(
+        xyz_particle_tracking_settings_widget.native.layout().addWidget(
             FigureCanvas(fig)
         )
         fig_added = True

@@ -1,0 +1,10 @@
+name: napari-trackpy
+display_name: Particle tracking
+contributions:
+  commands:
+    - id: napari-trackpy.xyz_particle_tracking_settings_widget
+      python_name: napari_trackpy:xyz_particle_tracking_settings_widget
+      title: XYZ particle tracking
+  widgets:
+    - command: napari-trackpy.xyz_particle_tracking_settings_widget
+      display_name: XYZ particle tracking
