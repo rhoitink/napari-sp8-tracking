@@ -36,7 +36,6 @@ def xyz_particle_tracking_settings_widget(
     min_separation_xy_µm: float = 0.3,
     min_separation_z_µm: float = 0.3,
     min_mass=int(1e5),
-    show_plots: bool = False,
 ):
     if img_layer is None:
         notifications.show_error("No image selected")
@@ -64,7 +63,6 @@ def xyz_particle_tracking_settings_widget(
             min_separation_xy_μm,  # noqa F821
             min_separation_z_μm,  # noqa F821
             min_mass,
-            show_plots,
         )
         results.returned.connect(
             lambda x: add_points_to_viewer(viewer, img_layer, x)
@@ -106,7 +104,6 @@ def do_particle_tracking(
     min_separation_xy_µm: float,
     min_separation_z_µm: float,
     min_mass,
-    show_plots: bool,
 ):
     img = img_layer.metadata["aicsimage"]
 
@@ -169,17 +166,6 @@ def do_particle_tracking(
             & (coords["z"] <= nz - feature_sizes[0] / 2)
         )
     ]
-
-    if show_plots:
-        import matplotlib.pyplot as plt
-
-        _, ax = plt.subplots(1, 1)
-        ax.hist(coords["mass"], bins="auto", fc="blue", ec="k")
-        ax.set_title("Histogram of particle mass")
-        ax.set_xlabel("Mass")
-        ax.set_ylabel("Occurence")
-        plt.tight_layout()
-        plt.show(block=False)
 
     notifications.show_info(
         f"{np.shape(coords)[0]} features found, took {time()-t:.2f} s"
