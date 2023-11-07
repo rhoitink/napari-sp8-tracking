@@ -3,7 +3,7 @@ display_name: Particle tracking
 contributions:
   commands:
     - id: napari-trackpy.xyz_particle_tracking_settings_widget
-      python_name: napari_trackpy:xyz_particle_tracking_settings_widget
+      python_name: napari_trackpy._widget:XYZWidget
       title: XYZ particle tracking
   widgets:
     - command: napari-trackpy.xyz_particle_tracking_settings_widget
