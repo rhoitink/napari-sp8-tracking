@@ -4,7 +4,6 @@
 [![PyPI](https://img.shields.io/pypi/v/napari-trackpy.svg?color=green)](https://pypi.org/project/napari-trackpy)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-trackpy.svg?color=green)](https://python.org)
 [![tests](https://github.com/rhoitink/napari-trackpy/workflows/tests/badge.svg)](https://github.com/rhoitink/napari-trackpy/actions)
-[![codecov](https://codecov.io/gh/rhoitink/napari-trackpy/branch/main/graph/badge.svg)](https://codecov.io/gh/rhoitink/napari-trackpy)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-trackpy)](https://napari-hub.org/plugins/napari-trackpy)
 
 Plugin to do [trackpy] particle tracking on 3D microscopy data within [napari]. Currently only tracking of XYZ data is implemented.
@@ -28,8 +27,7 @@ To install latest development version :
 
 ## Contributing
 
-Contributions are very welcome. Tests can be run with [tox], please ensure
-the coverage at least stays the same before you submit a pull request.
+Contributions are very welcome. Tests can be run with [tox].
 
 ## License
 

@@ -101,7 +101,6 @@ class XYZWidget(Container):
         """Thread that performs the particle tracking"""
         img = self.img_layer.metadata["aicsimage"]
 
-        # tracking code implementation based on `sp8_xyz_tracking_lif.py` by Maarten Bransen
         stack = np.squeeze(
             self.img_layer.data_raw
         )  # squeeze out dimensions with length 1
