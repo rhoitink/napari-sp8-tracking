@@ -1,20 +1,12 @@
 from time import time
-from typing import TYPE_CHECKING
-
-import matplotlib.pyplot as plt
-import numpy as np
-import trackpy as tp
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from napari.utils import notifications
-from superqt.utils import thread_worker
-
-if TYPE_CHECKING:
-    import napari
-    import napari.layers
-    import napari.viewer
-
 from typing import cast
 
+import matplotlib.pyplot as plt
+import napari
+import napari.layers
+import napari.viewer
+import numpy as np
+import trackpy as tp
 from magicgui.widgets import (
     ComboBox,
     Container,
@@ -23,6 +15,9 @@ from magicgui.widgets import (
     PushButton,
     create_widget,
 )
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from napari.utils import notifications
+from superqt.utils import thread_worker
 
 
 class XYZWidget(Container):
@@ -193,9 +188,7 @@ class XYZWidget(Container):
         return (self.coords, self.pixel_sizes)
 
     def _on_label_layer_changed(self, new_value: napari.layers.Image):
-        # print(self.img_layer_name, type(self.img_layer_name), type(new_value))
         self.img_layer = new_value
-        # set your internal annotation layer here.
 
     def _on_run_clicked(self):
         if self.img_layer is None:
@@ -215,7 +208,6 @@ class XYZWidget(Container):
         self.run_btn.enabled = False
         tracking_thread = self.do_particle_tracking()
         tracking_thread.finished.connect(lambda: self.process_tracking())
-        # tracking_thread.finished.connect(lambda: )
         tracking_thread.start()
 
     def process_tracking(self):
@@ -257,3 +249,6 @@ class XYZWidget(Container):
         self.pixel_sizes = None
         if self.last_added_points_layer is not None:
             self.viewer.layers.remove(self.last_added_points_layer.name)
+        self.reset_btn.enabled = False
+        self.save_params_btn.enabled = False
+        self.save_tracking_btn.enabled = False
