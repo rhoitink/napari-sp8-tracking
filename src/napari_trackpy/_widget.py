@@ -22,6 +22,11 @@ from superqt.utils import thread_worker
 
 class XYZWidget(Container):
     def __init__(self, viewer: napari.viewer.Viewer):
+        """Class to perform particle tracking using `trackpy` on an xyz dataset
+
+        Args:
+            viewer (napari.viewer.Viewer): Napari viewer instance
+        """
         self.viewer = viewer
         self.img_layer = None
         self.img_layer_name = cast(
@@ -68,9 +73,9 @@ class XYZWidget(Container):
             enabled=False, label="Save coordinates"
         )
         self.run_btn = PushButton(label="Run")
-        self.run_btn.clicked.connect(self._on_run_clicked)
+        self.run_btn.clicked.connect(self.run_tracking)
         self.reset_btn.clicked.connect(self.reset)
-        self.img_layer_name.changed.connect(self._on_label_layer_changed)
+        self.img_layer_name.changed.connect(self._on_image_layer_changed)
 
         self.last_added_points_layer = None
         self.fig, self.ax = None, None
@@ -92,7 +97,8 @@ class XYZWidget(Container):
         )
 
     @thread_worker
-    def do_particle_tracking(self):
+    def do_particle_tracking(self) -> None:
+        """Thread that performs the particle tracking"""
         img = self.img_layer.metadata["aicsimage"]
 
         # tracking code implementation based on `sp8_xyz_tracking_lif.py` by Maarten Bransen
@@ -105,7 +111,6 @@ class XYZWidget(Container):
         )
 
         # convert feature size and min_separation to pixel units
-
         feature_sizes = np.array(
             [
                 np.ceil(
@@ -145,7 +150,7 @@ class XYZWidget(Container):
             ]
         )
 
-        # disallow equal sizes in all dimensions
+        # disallow equal sizes in all dimensions (trackpy requirement)
         if (
             feature_sizes[2] == feature_sizes[1]
             and feature_sizes[2] == feature_sizes[0]
@@ -185,12 +190,14 @@ class XYZWidget(Container):
             f"{np.shape(self.coords)[0]} features found, took {time()-t:.2f} s"
         )
 
-        return (self.coords, self.pixel_sizes)
+        return
 
-    def _on_label_layer_changed(self, new_value: napari.layers.Image):
+    def _on_image_layer_changed(self, new_value: napari.layers.Image):
+        """set self.img_layer to an image layer object"""
         self.img_layer = new_value
 
-    def _on_run_clicked(self):
+    def run_tracking(self) -> None:
+        """Run some checks and start particle tracking if those succeeed"""
         if self.img_layer is None:
             notifications.show_error("No image selected")
             return
@@ -202,23 +209,29 @@ class XYZWidget(Container):
             return
 
         if self.fig is None:
+            # initialise figure for mass histogram
             self.fig, self.ax = plt.subplots(1, 1)
             self.native.layout().addWidget(FigureCanvas(self.fig))
 
-        self.run_btn.enabled = False
+        self.run_btn.enabled = False  # disable run button
         tracking_thread = self.do_particle_tracking()
-        tracking_thread.finished.connect(lambda: self.process_tracking())
-        tracking_thread.start()
 
-    def process_tracking(self):
+        # when tracking is finished, process results
+        tracking_thread.finished.connect(lambda: self.process_tracking())
+
+        tracking_thread.start()  # start thread
+
+    def process_tracking(self) -> None:
+        """Process results from particle tracking
+        Basically calls few other functions and resets buttons
+        """
         self.add_points_to_viewer()
         self.show_mass_histogram()
         self.run_btn.enabled = True
         self.reset_btn.enabled = True
-        # self.save_params_btn.enabled = True
-        # self.save_tracking_btn.enabled = True
 
-    def add_points_to_viewer(self):
+    def add_points_to_viewer(self) -> None:
+        """Add coordinates as points layer to viewer"""
         # @todo: fix size of points
         self.last_added_points_layer = self.viewer.add_points(
             np.array(self.coords[["z", "y", "x"]]),
@@ -228,27 +241,50 @@ class XYZWidget(Container):
             face_color="transparent",
             name=f"{self.img_layer.name}_coords",
             out_of_slice_display=True,
+            metadata={
+                "particle_tracking_pixel_sizes": self.pixel_sizes,
+                "particle_tracking_settings": self._get_tracking_settings(),
+            },
         )
 
-    def show_mass_histogram(self):
+    def show_mass_histogram(self) -> None:
+        """Plot histogram of particle mass"""
         self.reset_histogram()
         self.ax.hist(self.coords["mass"], "auto")
         self.ax.figure.tight_layout()
         self.ax.figure.canvas.draw()
 
-    def reset_histogram(self):
+    def reset_histogram(self) -> None:
+        """Clear data from histogram"""
         self.ax.cla()
         self.ax.set_xlabel("mass (a.u.)")
         self.ax.set_ylabel("occurence")
         self.ax.figure.tight_layout()
         self.ax.figure.canvas.draw()
 
-    def reset(self):
+    def reset(self) -> None:
+        """Reset histogram and remove data"""
         self.reset_histogram()
         self.coords = None
         self.pixel_sizes = None
         if self.last_added_points_layer is not None:
             self.viewer.layers.remove(self.last_added_points_layer.name)
         self.reset_btn.enabled = False
-        self.save_params_btn.enabled = False
-        self.save_tracking_btn.enabled = False
+
+    def _get_tracking_settings(self) -> dict:
+        """Get dictionary with settings for the particle tracking,
+        useful for saving parameters into a file.
+
+        Returns:
+            dict: dictionary with the values for each of the parameters
+        """
+
+        return {
+            "image_layer": self.img_layer_name.value,
+            "feature_size_xy_µm": self.feature_size_xy_μm.value,
+            "feature_size_z_μm": self.feature_size_z_μm.value,
+            "min_separation_xy_μm": self.min_separation_xy_μm.value,
+            "min_separation_z_μm": self.min_separation_z_μm.value,
+            "min_mass": self.min_mass.value,
+            "max_mass": self.max_mass.value,
+        }

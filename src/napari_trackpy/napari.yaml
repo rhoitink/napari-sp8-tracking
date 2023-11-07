@@ -2,9 +2,19 @@ name: napari-trackpy
 display_name: Particle tracking
 contributions:
   commands:
-    - id: napari-trackpy.xyz_particle_tracking_settings_widget
+    - id: napari-trackpy.xyz_tracking
       python_name: napari_trackpy._widget:XYZWidget
       title: XYZ particle tracking
+    - id: napari-trackpy.write_points_xyzfile
+      title: Save points layer to xyz file
+      python_name: napari_trackpy._writer:xyz_file_writer
   widgets:
-    - command: napari-trackpy.xyz_particle_tracking_settings_widget
+    - command: napari-trackpy.xyz_tracking
       display_name: XYZ particle tracking
+  writers:
+  - command: napari-trackpy.write_points_xyzfile
+    display_name: XYZ format
+    layer_types:
+    - points
+    filename_extensions:
+    - .xyz
