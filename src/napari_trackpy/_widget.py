@@ -66,12 +66,6 @@ class XYZWidget(Container):
 
         self.run_btn = PushButton(label="Run")
         self.reset_btn = PushButton(enabled=False, label="Reset")
-        self.save_params_btn = PushButton(
-            enabled=False, label="Save tracking parameters"
-        )
-        self.save_tracking_btn = PushButton(
-            enabled=False, label="Save coordinates"
-        )
         self.run_btn = PushButton(label="Run")
         self.run_btn.clicked.connect(self.run_tracking)
         self.reset_btn.clicked.connect(self.reset)
@@ -91,8 +85,6 @@ class XYZWidget(Container):
                 self.max_mass,
                 self.run_btn,
                 self.reset_btn,
-                self.save_params_btn,
-                self.save_tracking_btn,
             ]
         )
 
