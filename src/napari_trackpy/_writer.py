@@ -16,6 +16,8 @@ def xyz_file_writer(
         )
         header += ' Unit="micrometer"'
 
+    coordinates = coordinates[:, [2, 1, 0]]  # change from ZYX to XYZ
+
     if "particle_tracking_settings" in attributes["metadata"]:
         # save particle tracking settings to txt file
         with open(
