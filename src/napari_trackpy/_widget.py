@@ -1,5 +1,5 @@
 from time import time
-from typing import cast
+from typing import Union, cast
 
 import matplotlib.pyplot as plt
 import napari
@@ -10,7 +10,6 @@ import trackpy as tp
 from magicgui.widgets import (
     ComboBox,
     Container,
-    FloatSlider,
     FloatSpinBox,
     PushButton,
     create_widget,
@@ -28,8 +27,7 @@ class XYZWidget(Container):
             viewer (napari.viewer.Viewer): Napari viewer instance
         """
         self.viewer = viewer
-        self.img_layer = None
-        self.img_layer_name = cast(
+        self.img_layer = cast(
             ComboBox,
             create_widget(annotation=napari.layers.Image, label="Image"),
         )
@@ -49,19 +47,31 @@ class XYZWidget(Container):
             max=1e3,
             step=0.05,
             label="Min. separation xy(µm)",
+            tooltip="Minimial separation between two features along the x/y axis",
         )
         self.min_separation_z_µm = FloatSpinBox(
             value=0.3,
             min=0.0,
             max=1e3,
             step=0.05,
-            label="Max. separation z(µm)",
+            label="Min. separation z(µm)",
+            tooltip="Minimial separation between two features along the z axis",
         )
-        self.min_mass = FloatSlider(
-            value=1e2, min=0, max=1e9, label="Min. mass"
+        self.min_mass = FloatSpinBox(
+            value=1.0,
+            min=0.0,
+            max=1e6,
+            step=0.1,
+            label="Min. mass",
+            tooltip="Per unit of volume (based on defined feature size)",
         )
-        self.max_mass = FloatSlider(
-            value=1e8, min=1, max=1e9, label="Max. mass"
+        self.max_mass = FloatSpinBox(
+            value=1e4,
+            min=1.0,
+            max=1e6,
+            step=0.1,
+            label="Max. mass",
+            tooltip="Per unit of volume (based on defined feature size)",
         )
 
         self.run_btn = PushButton(label="Run")
@@ -69,14 +79,13 @@ class XYZWidget(Container):
         self.run_btn = PushButton(label="Run")
         self.run_btn.clicked.connect(self.run_tracking)
         self.reset_btn.clicked.connect(self.reset)
-        self.img_layer_name.changed.connect(self._on_image_layer_changed)
 
         self.last_added_points_layer = None
         self.fig, self.ax = None, None
 
         super().__init__(
             widgets=[
-                self.img_layer_name,
+                self.img_layer,
                 self.feature_size_xy_µm,
                 self.feature_size_z_μm,
                 self.min_separation_xy_μm,
@@ -91,10 +100,10 @@ class XYZWidget(Container):
     @thread_worker
     def do_particle_tracking(self) -> None:
         """Thread that performs the particle tracking"""
-        img = self.img_layer.metadata["aicsimage"]
+        img = self.img_layer.value.metadata["aicsimage"]
 
         stack = np.squeeze(
-            self.img_layer.data_raw
+            self.img_layer.value.data_raw
         )  # squeeze out dimensions with length 1
         nz, ny, nx = stack.shape
         self.pixel_sizes = np.array(
@@ -151,17 +160,25 @@ class XYZWidget(Container):
                 f"Increasing z-size to {feature_sizes[0] * np.abs(self.pixel_sizes[0])}"
             )
 
+        self.feature_volume = np.prod(feature_sizes)
+
         t = time()
 
         # trackpy particle tracking with set parameters
+        # trackpy needs the mass to be not normalized
         coords = tp.locate(
             stack,
             diameter=feature_sizes,
-            minmass=self.min_mass.value,
+            minmass=self.mass_denormalize(
+                self.min_mass.value, self.feature_volume
+            ),
             separation=min_separations,
             characterize=False,
         )
         coords = coords.dropna(subset=["x", "y", "z", "mass"])
+        coords["mass"] = self.mass_normalize(
+            coords["mass"], self.feature_volume
+        )
         coords = coords.loc[(coords["mass"] < self.max_mass.value)]
         coords = coords.loc[
             (
@@ -183,17 +200,13 @@ class XYZWidget(Container):
 
         return
 
-    def _on_image_layer_changed(self, new_value: napari.layers.Image):
-        """set self.img_layer to an image layer object"""
-        self.img_layer = new_value
-
     def run_tracking(self) -> None:
         """Run some checks and start particle tracking if those succeeed"""
-        if self.img_layer is None:
+        if self.img_layer.value is None:
             notifications.show_error("No image selected")
             return
 
-        if "aicsimage" not in self.img_layer.metadata:
+        if "aicsimage" not in self.img_layer.value.metadata:
             notifications.show_error(
                 "Data not loaded via aicsimageio plugin, cannot extract metadata"
             )
@@ -221,6 +234,16 @@ class XYZWidget(Container):
         self.run_btn.enabled = True
         self.reset_btn.enabled = True
 
+    def mass_normalize(
+        self, mass: Union[float, np.ndarray], feature_volume: float
+    ):
+        return mass / feature_volume
+
+    def mass_denormalize(
+        self, normalized_mass: Union[float, np.ndarray], feature_volume: float
+    ):
+        return normalized_mass * feature_volume
+
     def add_points_to_viewer(self) -> None:
         """Add coordinates as points layer to viewer"""
         # @todo: fix size of points
@@ -230,7 +253,7 @@ class XYZWidget(Container):
             scale=self.pixel_sizes,
             edge_color="red",
             face_color="transparent",
-            name=f"{self.img_layer.name}_coords",
+            name=f"{self.img_layer.value.name}_coords",
             out_of_slice_display=True,
             metadata={
                 "particle_tracking_pixel_sizes": self.pixel_sizes,
@@ -271,7 +294,7 @@ class XYZWidget(Container):
         """
 
         return {
-            "image_layer": self.img_layer_name.value,
+            "image_layer": self.img_layer.value.name,
             "feature_size_xy_µm": self.feature_size_xy_μm.value,
             "feature_size_z_μm": self.feature_size_z_μm.value,
             "min_separation_xy_μm": self.min_separation_xy_μm.value,
